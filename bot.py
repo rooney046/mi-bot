@@ -1,59 +1,61 @@
 import discord
-from discord.ext import commands
+from discord import app_commands
 import os
 
 intents = discord.Intents.default()
-intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="/", intents=intents)
+client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
 
-@bot.event
+@client.event
 async def on_ready():
-    print(f"✅ Bot conectado como: {bot.user}")
-    await bot.change_presence(activity=discord.Game(name="!help"))
+    await tree.sync()
+    print(f"✅ Bot conectado como: {client.user}")
+    await client.change_presence(activity=discord.Game(name="/help"))
 
-@bot.event
-async def on_message(message):
-    if message.author == bot.user:
-        return
-    if "hola" in message.content.lower():
-        await message.channel.send(f"¡Hola, {message.author.mention}! 👋")
-    await bot.process_commands(message)
+@tree.command(name="ping", description="Muestra la latencia del bot")
+async def ping(interaction: discord.Interaction):
+    latency = round(client.latency * 1000)
+    await interaction.response.send_message(f"🏓 Pong! Latencia: **{latency}ms**")
 
-@bot.command(name="ping")
-async def ping(ctx):
-    latency = round(bot.latency * 1000)
-    await ctx.send(f"🏓 Pong! Latencia: **{latency}ms**")
+@tree.command(name="saludar", description="Saluda a un usuario")
+async def saludar(interaction: discord.Interaction, usuario: discord.Member = None):
+    usuario = usuario or interaction.user
+    await interaction.response.send_message(f"¡Hola, {usuario.mention}! 🎉")
 
-@bot.command(name="saludar")
-async def saludar(ctx, miembro: discord.Member = None):
-    miembro = miembro or ctx.author
-    await ctx.send(f"¡Hola, {miembro.mention}! 🎉")
-
-@bot.command(name="info")
-async def info(ctx):
-    servidor = ctx.guild
+@tree.command(name="info", description="Muestra información del servidor")
+async def info(interaction: discord.Interaction):
+    servidor = interaction.guild
     embed = discord.Embed(title=f"📋 Info de {servidor.name}", color=discord.Color.blue())
     embed.add_field(name="Miembros", value=servidor.member_count)
     embed.add_field(name="Canales", value=len(servidor.channels))
-    await ctx.send(embed=embed)
+    await interaction.response.send_message(embed=embed)
 
-@bot.command(name="limpiar")
-@commands.has_permissions(manage_messages=True)
-async def limpiar(ctx, cantidad: int = 5):
-    await ctx.channel.purge(limit=cantidad + 1)
-    msg = await ctx.send(f"🗑️ Se borraron **{cantidad}** mensajes.")
-    await msg.delete(delay=3)
+@tree.command(name="limpiar", description="Borra mensajes del canal")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def limpiar(interaction: discord.Interaction, cantidad: int = 5):
+    await interaction.channel.purge(limit=cantidad)
+    await interaction.response.send_message(f"🗑️ Se borraron **{cantidad}** mensajes.", ephemeral=True)
 
-@bot.event
-async def on_command_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.send("❌ No tienes permisos para usar este comando.")
-    elif isinstance(error, commands.MemberNotFound):
-        await ctx.send("❌ No encontré ese usuario.")
-    elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send(f"⚠️ Falta un argumento.")
-
+@tree.command(name="anuncio", description="Envía un anuncio a todos los canales del servidor")
+@app_commands.checks.has_permissions(administrator=True)
+async def anuncio(interaction: discord.Interaction, mensaje: str):
+    await interaction.response.defer()
+    enviado = 0
+    for canal in interaction.guild.text_channels:
+        try:
+            embed = discord.Embed(
+                title="📢 Anuncio",
+                description=mensaje,
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=f"Anuncio de {interaction.user.name}")
+            await canal.send(embed=embed)
+            enviado += 1
+        except:
+            pass
+    await interaction.followup.send(f"✅ Anuncio enviado a **{enviado}** canales.", ephemeral=True)
+    
 TOKEN = os.getenv("DISCORD_TOKEN")
-bot.run(TOKEN)
+client.run(TOKEN)
