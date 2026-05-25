@@ -2,6 +2,28 @@ import discord
 from discord import app_commands
 import os
 
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.end_headers()
+        try:
+            with open('index.html', 'rb') as f:
+                self.wfile.write(f.read())
+        except:
+            self.wfile.write(b'Hurban Bot funcionando!')
+    def log_message(self, format, *args):
+        pass
+
+def run_web():
+    port = int(os.getenv("PORT", 8080))
+    server = HTTPServer(('0.0.0.0', port), Handler)
+    server.serve_forever()
+
+threading.Thread(target=run_web, daemon=True).start()
 intents = discord.Intents.default()
 intents.members = True
 
