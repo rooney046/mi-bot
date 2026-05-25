@@ -1,9 +1,12 @@
 import discord
 from discord import app_commands
 import os
+import asyncio
+import datetime
 
 intents = discord.Intents.default()
 intents.members = True
+intents.message_content = True
 
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
@@ -42,15 +45,10 @@ async def limpiar(interaction: discord.Interaction, cantidad: int = 5):
 @app_commands.checks.has_permissions(administrator=True)
 async def anuncio(interaction: discord.Interaction, canal: discord.TextChannel, mensaje: str):
     await interaction.response.defer(ephemeral=True)
-    embed = discord.Embed(
-        description=mensaje,
-        color=discord.Color.red()
-    )
+    embed = discord.Embed(description=mensaje, color=discord.Color.red())
     embed.set_author(name="📢 Anuncio")
     await canal.send(embed=embed)
     await interaction.followup.send(f"✅ Anuncio enviado a {canal.mention}", ephemeral=True)
-
-import re
 
 MALAS_PALABRAS = ["mierda", "puta", "idiota", "imbecil", "pendejo", "cabron"]
 
@@ -58,53 +56,31 @@ MALAS_PALABRAS = ["mierda", "puta", "idiota", "imbecil", "pendejo", "cabron"]
 async def on_message(message):
     if message.author.bot:
         return
-    
     contenido = message.content.lower()
-    
     for palabra in MALAS_PALABRAS:
         if palabra in contenido:
             await message.delete()
-            
-            # Crear rol de aislado si no existe
             rol_aislado = discord.utils.get(message.guild.roles, name="Aislado")
             if not rol_aislado:
                 rol_aislado = await message.guild.create_role(name="Aislado")
                 for channel in message.guild.channels:
                     await channel.set_permissions(rol_aislado, send_messages=False, speak=False)
-            
-            # Aplicar rol
             await message.author.add_roles(rol_aislado)
-            
             aviso = await message.channel.send(
                 f"🔇 {message.author.mention} fue aislado 5 minutos por usar lenguaje inapropiado."
             )
-            
-            # Esperar 5 minutos y quitar rol
-            await discord.utils.sleep_until(
-                discord.utils.utcnow() + discord.timedelta(minutes=5)
-            )
+            await asyncio.sleep(300)
             await message.author.remove_roles(rol_aislado)
             await aviso.delete()
             break
 
-# Guardar canales configurados
 config = {}
 
 @tree.command(name="configurar", description="Configura los canales de bienvenida y despedida")
 @app_commands.checks.has_permissions(administrator=True)
-async def configurar(
-    interaction: discord.Interaction,
-    bienvenida: discord.TextChannel,
-    despedida: discord.TextChannel
-):
-    config[interaction.guild.id] = {
-        "bienvenida": bienvenida.id,
-        "despedida": despedida.id
-    }
-    embed = discord.Embed(
-        title="✅ Configuración guardada",
-        color=discord.Color.green()
-    )
+async def configurar(interaction: discord.Interaction, bienvenida: discord.TextChannel, despedida: discord.TextChannel):
+    config[interaction.guild.id] = {"bienvenida": bienvenida.id, "despedida": despedida.id}
+    embed = discord.Embed(title="✅ Configuración guardada", color=discord.Color.green())
     embed.add_field(name="👋 Bienvenida", value=bienvenida.mention)
     embed.add_field(name="👋 Despedida", value=despedida.mention)
     await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -136,6 +112,6 @@ async def on_member_remove(member):
             )
             embed.set_thumbnail(url=member.display_avatar.url)
             await canal.send(embed=embed)
-    
+
 TOKEN = os.getenv("DISCORD_TOKEN")
 client.run(TOKEN)
