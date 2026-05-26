@@ -49,62 +49,20 @@ async def anuncio(interaction: discord.Interaction, canal: discord.TextChannel, 
     await canal.send(embed=embed)
     await interaction.followup.send(f"✅ Anuncio enviado a {canal.mention}", ephemeral=True)
 
-# ── Anuncio Global ─────────────────────────────────────────
-@tree.command(name="anuncio-global", description="Envía un anuncio a todos los canales de texto del servidor")
+# ── Mensaje en ticket ──────────────────────────────────────
+@tree.command(name="mensaje-ticket", description="Envía un mensaje embed dentro de un ticket abierto")
 @app_commands.checks.has_permissions(administrator=True)
-@app_commands.describe(
-    mensaje="El mensaje del anuncio",
-    titulo="Título del anuncio (opcional)",
-    color="Color del embed: rojo, azul, verde, dorado (por defecto: rojo)"
-)
-async def anuncio_global(
-    interaction: discord.Interaction,
-    mensaje: str,
-    titulo: str = "📢 Anuncio Global",
-    color: str = "rojo"
-):
-    await interaction.response.defer(ephemeral=True)
-
-    colores = {
-        "rojo": discord.Color.red(),
-        "azul": discord.Color.blue(),
-        "verde": discord.Color.green(),
-        "dorado": discord.Color.gold()
-    }
-    color_embed = colores.get(color.lower(), discord.Color.red())
-
+async def mensaje_ticket(interaction: discord.Interaction, mensaje: str):
+    if not interaction.channel.name.startswith("ticket-"):
+        await interaction.response.send_message("❌ Este comando solo se puede usar dentro de un ticket.", ephemeral=True)
+        return
     embed = discord.Embed(
-        title=titulo,
         description=mensaje,
-        color=color_embed,
-        timestamp=discord.utils.utcnow()
+        color=discord.Color.gold()
     )
-    embed.set_author(
-        name=interaction.user.display_name,
-        icon_url=interaction.user.display_avatar.url
-    )
-    embed.set_footer(
-        text=f"Servidor: {interaction.guild.name}",
-        icon_url=interaction.guild.icon.url if interaction.guild.icon else None
-    )
-
-    enviados = 0
-    fallidos = 0
-
-    for canal in interaction.guild.text_channels:
-        perms = canal.permissions_for(interaction.guild.me)
-        if perms.send_messages and perms.embed_links:
-            try:
-                await canal.send(embed=embed)
-                enviados += 1
-            except Exception:
-                fallidos += 1
-
-    resumen = f"✅ Anuncio global enviado a **{enviados}** canal(es)."
-    if fallidos:
-        resumen += f"\n⚠️ No se pudo enviar a **{fallidos}** canal(es) por falta de permisos."
-
-    await interaction.followup.send(resumen, ephemeral=True)
+    embed.set_author(name="📩 Mensaje del Staff")
+    await interaction.channel.send(embed=embed)
+    await interaction.response.send_message("✅ Mensaje enviado.", ephemeral=True)
 
 # ── Anti Link ──────────────────────────────────────────────
 canales_antilink = set()
@@ -127,8 +85,6 @@ MALAS_PALABRAS = ["mierda", "puta", "idiota", "imbecil", "pendejo", "cabron"]
 async def on_message(message):
     if message.author.bot:
         return
-
-    # Anti link
     if message.channel.id in canales_antilink:
         if "http://" in message.content or "https://" in message.content or "discord.gg" in message.content:
             await message.delete()
@@ -136,8 +92,6 @@ async def on_message(message):
             await asyncio.sleep(5)
             await aviso.delete()
             return
-
-    # Malas palabras
     contenido = message.content.lower()
     for palabra in MALAS_PALABRAS:
         if palabra in contenido:
