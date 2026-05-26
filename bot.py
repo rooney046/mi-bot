@@ -49,6 +49,20 @@ async def anuncio(interaction: discord.Interaction, canal: discord.TextChannel, 
     await canal.send(embed=embed)
     await interaction.followup.send(f"✅ Anuncio enviado a {canal.mention}", ephemeral=True)
 
+# ── Anti Link ──────────────────────────────────────────────
+canales_antilink = set()
+
+@tree.command(name="antilink", description="Activa o desactiva el anti-link en un canal")
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.describe(canal="Canal donde aplicar el anti-link", activar="True para activar, False para desactivar")
+async def antilink(interaction: discord.Interaction, canal: discord.TextChannel, activar: bool):
+    if activar:
+        canales_antilink.add(canal.id)
+        await interaction.response.send_message(f"✅ Anti-link activado en {canal.mention}", ephemeral=True)
+    else:
+        canales_antilink.discard(canal.id)
+        await interaction.response.send_message(f"❌ Anti-link desactivado en {canal.mention}", ephemeral=True)
+
 # ── Malas palabras ─────────────────────────────────────────
 MALAS_PALABRAS = ["mierda", "puta", "idiota", "imbecil", "pendejo", "cabron"]
 
@@ -56,6 +70,17 @@ MALAS_PALABRAS = ["mierda", "puta", "idiota", "imbecil", "pendejo", "cabron"]
 async def on_message(message):
     if message.author.bot:
         return
+
+    # Anti link
+    if message.channel.id in canales_antilink:
+        if "http://" in message.content or "https://" in message.content or "discord.gg" in message.content:
+            await message.delete()
+            aviso = await message.channel.send(f"🚫 {message.author.mention} no se permiten links aquí.")
+            await asyncio.sleep(5)
+            await aviso.delete()
+            return
+
+    # Malas palabras
     contenido = message.content.lower()
     for palabra in MALAS_PALABRAS:
         if palabra in contenido:
@@ -92,12 +117,8 @@ async def panel_bienvenida(
         "bienvenida": canal_bienvenida.id,
         "despedida": canal_despedida.id
     }
-    embed = discord.Embed(
-        title=titulo,
-        description=descripcion,
-        color=discord.Color.blue()
-    )
-    embed.set_footer(text=f"🎉 Las bienvenidas van en {canal_bienvenida.name} | Las despedidas en {canal_despedida.name}")
+    embed = discord.Embed(title=titulo, description=descripcion, color=discord.Color.blue())
+    embed.set_footer(text=f"🎉 Bienvenidas en {canal_bienvenida.name} | Despedidas en {canal_despedida.name}")
     embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else None)
     await canal.send(embed=embed)
     await interaction.response.send_message("✅ Panel de bienvenida creado y canales configurados.", ephemeral=True)
@@ -143,7 +164,7 @@ class VerificarBoton(discord.ui.View):
             await interaction.response.send_message("Ya estás verificado. ✅", ephemeral=True)
         else:
             await interaction.user.add_roles(rol)
-            await interaction.response.send_message(f"¡Te verificaste correctamente! 🎉 Ahora tienes el rol **{rol.name}**.", ephemeral=True)
+            await interaction.response.send_message(f"¡Verificado! 🎉 Ahora tienes el rol **{rol.name}**.", ephemeral=True)
 
 @tree.command(name="panel-verificacion", description="Crea un panel de verificación con botón")
 @app_commands.checks.has_permissions(administrator=True)
@@ -154,15 +175,60 @@ async def panel_verificacion(
     titulo: str,
     descripcion: str
 ):
-    embed = discord.Embed(
-        title=titulo,
-        description=descripcion,
-        color=discord.Color.green()
-    )
+    embed = discord.Embed(title=titulo, description=descripcion, color=discord.Color.green())
     embed.set_footer(text="Toca el botón para verificarte")
-    view = VerificarBoton(rol.id)
-    await canal.send(embed=embed, view=view)
+    await canal.send(embed=embed, view=VerificarBoton(rol.id))
     await interaction.response.send_message("✅ Panel de verificación creado.", ephemeral=True)
+
+# ── Panel de Tickets ───────────────────────────────────────
+class CerrarTicket(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="🔒 Cerrar Ticket", style=discord.ButtonStyle.red, custom_id="cerrar_ticket")
+    async def cerrar_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("Cerrando ticket en 5 segundos...", ephemeral=True)
+        await asyncio.sleep(5)
+        await interaction.channel.delete()
+
+class TicketBoton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="🎫 Abrir Ticket", style=discord.ButtonStyle.blurple, custom_id="abrir_ticket")
+    async def abrir_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        guild = interaction.guild
+        nombre_canal = f"ticket-{interaction.user.name}"
+        canal_existente = discord.utils.get(guild.text_channels, name=nombre_canal)
+        if canal_existente:
+            await interaction.response.send_message(f"Ya tienes un ticket abierto: {canal_existente.mention}", ephemeral=True)
+            return
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
+        canal_ticket = await guild.create_text_channel(nombre_canal, overwrites=overwrites)
+        embed = discord.Embed(
+            title="🎫 Ticket Abierto",
+            description=f"Hola {interaction.user.mention}, el staff te atenderá pronto.\nPara cerrar el ticket usa el botón de abajo.",
+            color=discord.Color.blue()
+        )
+        await canal_ticket.send(embed=embed, view=CerrarTicket())
+        await interaction.response.send_message(f"✅ Ticket creado: {canal_ticket.mention}", ephemeral=True)
+
+@tree.command(name="panel-ticket", description="Crea un panel de tickets")
+@app_commands.checks.has_permissions(administrator=True)
+async def panel_ticket(
+    interaction: discord.Interaction,
+    canal: discord.TextChannel,
+    titulo: str,
+    descripcion: str
+):
+    embed = discord.Embed(title=titulo, description=descripcion, color=discord.Color.blue())
+    embed.set_footer(text="Toca el botón para abrir un ticket")
+    await canal.send(embed=embed, view=TicketBoton())
+    await interaction.response.send_message("✅ Panel de tickets creado.", ephemeral=True)
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 client.run(TOKEN)
