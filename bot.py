@@ -2,7 +2,6 @@ import discord
 from discord import app_commands
 import os
 import asyncio
-import datetime
 
 intents = discord.Intents.default()
 intents.members = True
@@ -50,6 +49,7 @@ async def anuncio(interaction: discord.Interaction, canal: discord.TextChannel, 
     await canal.send(embed=embed)
     await interaction.followup.send(f"✅ Anuncio enviado a {canal.mention}", ephemeral=True)
 
+# ── Malas palabras ─────────────────────────────────────────
 MALAS_PALABRAS = ["mierda", "puta", "idiota", "imbecil", "pendejo", "cabron"]
 
 @client.event
@@ -74,16 +74,33 @@ async def on_message(message):
             await aviso.delete()
             break
 
+# ── Configuración ──────────────────────────────────────────
 config = {}
 
-@tree.command(name="configurar", description="Configura los canales de bienvenida y despedida")
+# ── Panel de bienvenida ────────────────────────────────────
+@tree.command(name="panel-bienvenida", description="Crea un panel de bienvenida en un canal")
 @app_commands.checks.has_permissions(administrator=True)
-async def configurar(interaction: discord.Interaction, bienvenida: discord.TextChannel, despedida: discord.TextChannel):
-    config[interaction.guild.id] = {"bienvenida": bienvenida.id, "despedida": despedida.id}
-    embed = discord.Embed(title="✅ Configuración guardada", color=discord.Color.green())
-    embed.add_field(name="👋 Bienvenida", value=bienvenida.mention)
-    embed.add_field(name="👋 Despedida", value=despedida.mention)
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+async def panel_bienvenida(
+    interaction: discord.Interaction,
+    canal: discord.TextChannel,
+    titulo: str,
+    descripcion: str,
+    canal_bienvenida: discord.TextChannel,
+    canal_despedida: discord.TextChannel
+):
+    config[interaction.guild.id] = {
+        "bienvenida": canal_bienvenida.id,
+        "despedida": canal_despedida.id
+    }
+    embed = discord.Embed(
+        title=titulo,
+        description=descripcion,
+        color=discord.Color.blue()
+    )
+    embed.set_footer(text=f"🎉 Las bienvenidas van en {canal_bienvenida.name} | Las despedidas en {canal_despedida.name}")
+    embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else None)
+    await canal.send(embed=embed)
+    await interaction.response.send_message("✅ Panel de bienvenida creado y canales configurados.", ephemeral=True)
 
 @client.event
 async def on_member_join(member):
@@ -112,6 +129,40 @@ async def on_member_remove(member):
             )
             embed.set_thumbnail(url=member.display_avatar.url)
             await canal.send(embed=embed)
+
+# ── Panel de verificación ──────────────────────────────────
+class VerificarBoton(discord.ui.View):
+    def __init__(self, rol_id):
+        super().__init__(timeout=None)
+        self.rol_id = rol_id
+
+    @discord.ui.button(label="✅ Verificarme", style=discord.ButtonStyle.green, custom_id="verificar")
+    async def verificar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        rol = interaction.guild.get_role(self.rol_id)
+        if rol in interaction.user.roles:
+            await interaction.response.send_message("Ya estás verificado. ✅", ephemeral=True)
+        else:
+            await interaction.user.add_roles(rol)
+            await interaction.response.send_message(f"¡Te verificaste correctamente! 🎉 Ahora tienes el rol **{rol.name}**.", ephemeral=True)
+
+@tree.command(name="panel-verificacion", description="Crea un panel de verificación con botón")
+@app_commands.checks.has_permissions(administrator=True)
+async def panel_verificacion(
+    interaction: discord.Interaction,
+    canal: discord.TextChannel,
+    rol: discord.Role,
+    titulo: str,
+    descripcion: str
+):
+    embed = discord.Embed(
+        title=titulo,
+        description=descripcion,
+        color=discord.Color.green()
+    )
+    embed.set_footer(text="Toca el botón para verificarte")
+    view = VerificarBoton(rol.id)
+    await canal.send(embed=embed, view=view)
+    await interaction.response.send_message("✅ Panel de verificación creado.", ephemeral=True)
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 client.run(TOKEN)
