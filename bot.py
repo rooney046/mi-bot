@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 import os
 import asyncio
+import random
 
 intents = discord.Intents.default()
 intents.members = True
@@ -56,10 +57,7 @@ async def mensaje_ticket(interaction: discord.Interaction, mensaje: str):
     if not interaction.channel.name.startswith("ticket-"):
         await interaction.response.send_message("❌ Este comando solo se puede usar dentro de un ticket.", ephemeral=True)
         return
-    embed = discord.Embed(
-        description=mensaje,
-        color=discord.Color.gold()
-    )
+    embed = discord.Embed(description=mensaje, color=discord.Color.gold())
     embed.set_author(name="📩 Mensaje del Staff")
     await interaction.channel.send(embed=embed)
     await interaction.response.send_message("✅ Mensaje enviado.", ephemeral=True)
@@ -78,13 +76,23 @@ async def antilink(interaction: discord.Interaction, canal: discord.TextChannel,
         canales_antilink.discard(canal.id)
         await interaction.response.send_message(f"❌ Anti-link desactivado en {canal.mention}", ephemeral=True)
 
-# ── Malas palabras ─────────────────────────────────────────
-MALAS_PALABRAS = ["mierda", "puta", "idiota", "imbecil", "pendejo", "cabron"]
+# ── Malas palabras mejorado ────────────────────────────────
+MALAS_PALABRAS = [
+    "mierda", "puta", "puto", "idiota", "imbecil", "pendejo",
+    "cabron", "gay", "maricon", "maldito", "estupido", "culo",
+    "joder", "coño", "verga", "chinga", "pinche", "gilipollas",
+    "bastardo", "hdp", "ctm", "conchatumadre", "webon", "wey",
+    "mamaguevo", "come mierda", "hijo de puta"
+]
+
+usuarios_aislados = set()
 
 @client.event
 async def on_message(message):
     if message.author.bot:
         return
+
+    # Anti link
     if message.channel.id in canales_antilink:
         if "http://" in message.content or "https://" in message.content or "discord.gg" in message.content:
             await message.delete()
@@ -92,21 +100,40 @@ async def on_message(message):
             await asyncio.sleep(5)
             await aviso.delete()
             return
+
+    # Malas palabras
+    if message.author.id in usuarios_aislados:
+        return
+
     contenido = message.content.lower()
     for palabra in MALAS_PALABRAS:
         if palabra in contenido:
             await message.delete()
+
+            # Tiempo aleatorio entre 5 y 10 minutos
+            minutos = random.randint(5, 10)
+            segundos = minutos * 60
+
             rol_aislado = discord.utils.get(message.guild.roles, name="Aislado")
             if not rol_aislado:
                 rol_aislado = await message.guild.create_role(name="Aislado")
                 for channel in message.guild.channels:
                     await channel.set_permissions(rol_aislado, send_messages=False, speak=False)
+
             await message.author.add_roles(rol_aislado)
-            aviso = await message.channel.send(
-                f"🔇 {message.author.mention} fue aislado 5 minutos por usar lenguaje inapropiado."
+            usuarios_aislados.add(message.author.id)
+
+            embed = discord.Embed(
+                title="🔇 Usuario Aislado",
+                description=f"{message.author.mention} fue aislado por usar lenguaje inapropiado.\n⏱️ Duración: **{minutos} minutos**",
+                color=discord.Color.red()
             )
-            await asyncio.sleep(300)
+            aviso = await message.channel.send(embed=embed)
+
+            await asyncio.sleep(segundos)
+
             await message.author.remove_roles(rol_aislado)
+            usuarios_aislados.discard(message.author.id)
             await aviso.delete()
             break
 
