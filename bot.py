@@ -14,23 +14,23 @@ tree = app_commands.CommandTree(client)
 @client.event
 async def on_ready():
     await tree.sync()
-    print(f"✅ Bot conectado como: {client.user}")
+    print(f"Bot conectado como: {client.user}")
     await client.change_presence(activity=discord.Game(name="/help"))
 
 @tree.command(name="ping", description="Muestra la latencia del bot")
 async def ping(interaction: discord.Interaction):
     latency = round(client.latency * 1000)
-    await interaction.response.send_message(f"🏓 Pong! Latencia: **{latency}ms**")
+    await interaction.response.send_message(f"Pong! Latencia: **{latency}ms**")
 
 @tree.command(name="saludar", description="Saluda a un usuario")
 async def saludar(interaction: discord.Interaction, usuario: discord.Member = None):
     usuario = usuario or interaction.user
-    await interaction.response.send_message(f"¡Hola, {usuario.mention}! 🎉")
+    await interaction.response.send_message(f"Hola, {usuario.mention}!")
 
-@tree.command(name="info", description="Muestra información del servidor")
+@tree.command(name="info", description="Muestra informacion del servidor")
 async def info(interaction: discord.Interaction):
     servidor = interaction.guild
-    embed = discord.Embed(title=f"📋 Info de {servidor.name}", color=discord.Color.blue())
+    embed = discord.Embed(title=f"Info de {servidor.name}", color=discord.Color.blue())
     embed.add_field(name="Miembros", value=servidor.member_count)
     embed.add_field(name="Canales", value=len(servidor.channels))
     await interaction.response.send_message(embed=embed)
@@ -39,73 +39,70 @@ async def info(interaction: discord.Interaction):
 @app_commands.checks.has_permissions(manage_messages=True)
 async def limpiar(interaction: discord.Interaction, cantidad: int = 5):
     await interaction.channel.purge(limit=cantidad)
-    await interaction.response.send_message(f"🗑️ Se borraron **{cantidad}** mensajes.", ephemeral=True)
+    await interaction.response.send_message(f"Se borraron **{cantidad}** mensajes.", ephemeral=True)
 
-@tree.command(name="anuncio", description="Envía un anuncio a un canal específico")
+@tree.command(name="anuncio", description="Envia un anuncio a un canal especifico")
 @app_commands.checks.has_permissions(administrator=True)
 async def anuncio(interaction: discord.Interaction, canal: discord.TextChannel, mensaje: str):
     await interaction.response.defer(ephemeral=True)
     embed = discord.Embed(description=mensaje, color=discord.Color.red())
-    embed.set_author(name="📢 Anuncio")
+    embed.set_author(name="Anuncio")
     await canal.send(embed=embed)
-    await interaction.followup.send(f"✅ Anuncio enviado a {canal.mention}", ephemeral=True)
+    await interaction.followup.send(f"Anuncio enviado a {canal.mention}", ephemeral=True)
 
-# ── Mensaje en ticket ──────────────────────────────────────
-@tree.command(name="mensaje-ticket", description="Envía un mensaje embed dentro de un ticket abierto")
+@tree.command(name="mensaje-ticket", description="Envia un mensaje embed dentro de un ticket abierto")
 @app_commands.checks.has_permissions(administrator=True)
 async def mensaje_ticket(interaction: discord.Interaction, mensaje: str):
     if not interaction.channel.name.startswith("ticket-"):
-        await interaction.response.send_message("❌ Este comando solo se puede usar dentro de un ticket.", ephemeral=True)
+        await interaction.response.send_message("Este comando solo se puede usar dentro de un ticket.", ephemeral=True)
         return
     embed = discord.Embed(description=mensaje, color=discord.Color.gold())
-    embed.set_author(name="📩 Mensaje del Staff")
+    embed.set_author(name="Mensaje del Staff")
     await interaction.channel.send(embed=embed)
-    await interaction.response.send_message("✅ Mensaje enviado.", ephemeral=True)
+    await interaction.response.send_message("Mensaje enviado.", ephemeral=True)
 
-# ── Hola Bot ──────────────────────────────────────────────
 @tree.command(name="hola-bot", description="Habla con el bot como si fuera una persona")
 async def hola_bot(interaction: discord.Interaction, mensaje: str):
     if interaction.channel.name != "comandos":
-        await interaction.response.send_message("❌ Este comando solo se puede usar en el canal #comandos.", ephemeral=True)
+        await interaction.response.send_message("Este comando solo se puede usar en el canal #comandos.", ephemeral=True)
         return
     await interaction.response.defer(ephemeral=True)
     mensaje_lower = mensaje.lower()
     if any(p in mensaje_lower for p in ["hola", "hey", "buenas", "saludos"]):
-        respuesta = f"¡Hola {interaction.user.mention}! 👋 ¿Cómo estás? ¿En qué te puedo ayudar?"
-    elif any(p in mensaje_lower for p in ["como estas", "cómo estás", "que tal", "qué tal"]):
-        respuesta = f"¡Estoy genial {interaction.user.mention}! Gracias por preguntar 😄 ¿Y tú?"
-    elif any(p in mensaje_lower for p in ["adios", "adiós", "chao", "bye", "hasta luego"]):
-        respuesta = f"¡Hasta luego {interaction.user.mention}! 👋 Fue un placer hablar contigo."
+        respuesta = f"Hola {interaction.user.mention}! Como estas? En que te puedo ayudar?"
+    elif any(p in mensaje_lower for p in ["como estas", "que tal"]):
+        respuesta = f"Estoy genial {interaction.user.mention}! Gracias por preguntar. Y tu?"
+    elif any(p in mensaje_lower for p in ["adios", "chao", "bye", "hasta luego"]):
+        respuesta = f"Hasta luego {interaction.user.mention}! Fue un placer hablar contigo."
     elif any(p in mensaje_lower for p in ["gracias", "thank"]):
-        respuesta = f"¡De nada {interaction.user.mention}! Para eso estoy 😊"
-    elif any(p in mensaje_lower for p in ["quien eres", "quién eres", "que eres", "qué eres"]):
-        respuesta = f"Soy **Hurban Bot** 🤖, el bot oficial de este servidor. ¡Estoy aquí para ayudarte!"
+        respuesta = f"De nada {interaction.user.mention}! Para eso estoy."
+    elif any(p in mensaje_lower for p in ["quien eres", "que eres"]):
+        respuesta = f"Soy **Hurban Bot**, el bot oficial de este servidor. Estoy aqui para ayudarte!"
     elif any(p in mensaje_lower for p in ["ayuda", "help", "comandos"]):
-        respuesta = f"¡Claro {interaction.user.mention}! Puedes usar `/ping`, `/info`, `/anuncio`, `/panel-ticket` y muchos más 😊"
+        respuesta = f"Claro {interaction.user.mention}! Puedes usar /ping, /info, /anuncio, /panel-ticket y muchos mas."
     elif any(p in mensaje_lower for p in ["aburrido", "aburrida"]):
-        respuesta = f"¡Yo nunca me aburro {interaction.user.mention}! Siempre estoy monitoreando el servidor 👀"
+        respuesta = f"Yo nunca me aburro {interaction.user.mention}! Siempre estoy monitoreando el servidor."
     elif any(p in mensaje_lower for p in ["amor", "te quiero", "te amo"]):
-        respuesta = f"Aww 🥺 ¡Yo también te quiero {interaction.user.mention}! Eres el mejor."
-    elif any(p in mensaje_lower for p in ["chiste", "cuéntame", "cuentame"]):
+        respuesta = f"Yo tambien te quiero {interaction.user.mention}! Eres el mejor."
+    elif any(p in mensaje_lower for p in ["chiste", "cuentame"]):
         chistes = [
-            "¿Por qué el libro de matemáticas está triste? Porque tiene demasiados problemas 😂",
-            "¿Qué le dice un jardinero a otro? ¡Que te peta! 🌸",
-            "¿Por qué los pájaros vuelan hacia el sur? ¡Porque caminar sería muy lejos! 😂"
+            "Por que el libro de matematicas esta triste? Porque tiene demasiados problemas.",
+            "Por que los pajaros vuelan hacia el sur? Porque caminar seria muy lejos!",
+            "Que le dice un semaforo a otro? No me mires que me estoy cambiando!"
         ]
         respuesta = random.choice(chistes)
     else:
         respuestas_generales = [
-            f"Interesante lo que dices, {interaction.user.mention} 🤔 ¡Cuéntame más!",
-            f"¡Eso es genial {interaction.user.mention}! 😄",
-            f"Hmm... no estoy seguro de entenderte {interaction.user.mention}, ¿puedes explicarme mejor? 😅",
-            f"¡Me parece muy bien {interaction.user.mention}! 👍",
-            f"¡Qué interesante {interaction.user.mention}! No lo había pensado así 🤯"
+            f"Interesante lo que dices, {interaction.user.mention}! Cuentame mas.",
+            f"Eso es genial {interaction.user.mention}!",
+            f"No estoy seguro de entenderte {interaction.user.mention}, puedes explicarme mejor?",
+            f"Me parece muy bien {interaction.user.mention}!",
+            f"Que interesante {interaction.user.mention}! No lo habia pensado asi."
         ]
         respuesta = random.choice(respuestas_generales)
     await interaction.channel.send(respuesta)
-    await interaction.followup.send("✅", ephemeral=True)
+    await interaction.followup.send("Listo.", ephemeral=True)
 
-# ── Anti Link ──────────────────────────────────────────────
 canales_antilink = set()
 
 @tree.command(name="antilink", description="Activa o desactiva el anti-link en un canal")
@@ -114,16 +111,15 @@ canales_antilink = set()
 async def antilink(interaction: discord.Interaction, canal: discord.TextChannel, activar: bool):
     if activar:
         canales_antilink.add(canal.id)
-        await interaction.response.send_message(f"✅ Anti-link activado en {canal.mention}", ephemeral=True)
+        await interaction.response.send_message(f"Anti-link activado en {canal.mention}", ephemeral=True)
     else:
         canales_antilink.discard(canal.id)
-        await interaction.response.send_message(f"❌ Anti-link desactivado en {canal.mention}", ephemeral=True)
+        await interaction.response.send_message(f"Anti-link desactivado en {canal.mention}", ephemeral=True)
 
-# ── Malas palabras ─────────────────────────────────────────
 MALAS_PALABRAS = [
     "mierda", "puta", "puto", "idiota", "imbecil", "pendejo",
     "cabron", "gay", "maricon", "maldito", "estupido", "culo",
-    "joder", "coño", "verga", "chinga", "pinche", "gilipollas",
+    "joder", "cono", "verga", "chinga", "pinche", "gilipollas",
     "bastardo", "hdp", "ctm", "conchatumadre", "webon", "wey",
     "mamaguevo", "come mierda", "hijo de puta"
 ]
@@ -137,7 +133,7 @@ async def on_message(message):
     if message.channel.id in canales_antilink:
         if "http://" in message.content or "https://" in message.content or "discord.gg" in message.content:
             await message.delete()
-            aviso = await message.channel.send(f"🚫 {message.author.mention} no se permiten links aquí.")
+            aviso = await message.channel.send(f"{message.author.mention} no se permiten links aqui.")
             await asyncio.sleep(5)
             await aviso.delete()
             return
@@ -157,18 +153,153 @@ async def on_message(message):
             await message.author.add_roles(rol_aislado)
             usuarios_aislados.add(message.author.id)
             embed_canal = discord.Embed(
-                title="🔇 Usuario Aislado",
+                title="Usuario Aislado",
                 description=f"{message.author.mention} fue aislado por **{minutos} minutos** por usar lenguaje inapropiado.",
                 color=discord.Color.red()
             )
             await message.channel.send(embed=embed_canal, delete_after=10)
             canal_adv = discord.utils.get(message.guild.text_channels, name="advertencia")
             if canal_adv:
-                embed_adv = discord.Embed(title="⚠️ Advertencia — Usuario Aislado", color=discord.Color.red())
-                embed_adv.add_field(name="👤 Usuario", value=f"{message.author.mention} (`{message.author.name}`)", inline=True)
-                embed_adv.add_field(name="⏱️ Duración", value=f"{minutos} minutos", inline=True)
-                embed_adv.add_field(name="📢 Canal", value=message.channel.mention, inline=True)
-                embed_adv.add_field(name="📝 Motivo", value=f"Se detectó la palabra prohibida **`{palabra}`** en su mensaje.", inline=False)
-                embed_adv.add_field(name="📋 Explicación", value="El servidor no permite el uso de lenguaje ofensivo, vulgar o discriminatorio. El usuario ha sido aislado temporalmente por violar las normas del servidor.", inline=False)
+                embed_adv = discord.Embed(title="Advertencia - Usuario Aislado", color=discord.Color.red())
+                embed_adv.add_field(name="Usuario", value=f"{message.author.mention} ({message.author.name})", inline=True)
+                embed_adv.add_field(name="Duracion", value=f"{minutos} minutos", inline=True)
+                embed_adv.add_field(name="Canal", value=message.channel.mention, inline=True)
+                embed_adv.add_field(name="Motivo", value=f"Se detecto la palabra prohibida **{palabra}** en su mensaje.", inline=False)
+                embed_adv.add_field(name="Explicacion", value="El servidor no permite el uso de lenguaje ofensivo, vulgar o discriminatorio. El usuario ha sido aislado temporalmente por violar las normas del servidor.", inline=False)
                 embed_adv.set_thumbnail(url=message.author.display_avatar.url)
-                embed_adv.set_footer(text=f"El a
+                embed_adv.set_footer(text=f"El aislamiento se levantara automaticamente en {minutos} minutos.")
+                await canal_adv.send(embed=embed_adv)
+            await asyncio.sleep(segundos)
+            await message.author.remove_roles(rol_aislado)
+            usuarios_aislados.discard(message.author.id)
+            break
+
+config = {}
+
+@tree.command(name="panel-bienvenida", description="Crea un panel de bienvenida en un canal")
+@app_commands.checks.has_permissions(administrator=True)
+async def panel_bienvenida(
+    interaction: discord.Interaction,
+    canal: discord.TextChannel,
+    titulo: str,
+    descripcion: str,
+    canal_bienvenida: discord.TextChannel,
+    canal_despedida: discord.TextChannel
+):
+    config[interaction.guild.id] = {
+        "bienvenida": canal_bienvenida.id,
+        "despedida": canal_despedida.id
+    }
+    embed = discord.Embed(title=titulo, description=descripcion, color=discord.Color.blue())
+    embed.set_footer(text=f"Bienvenidas en {canal_bienvenida.name} | Despedidas en {canal_despedida.name}")
+    embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else None)
+    await canal.send(embed=embed)
+    await interaction.response.send_message("Panel de bienvenida creado y canales configurados.", ephemeral=True)
+
+@client.event
+async def on_member_join(member):
+    guild_config = config.get(member.guild.id)
+    if guild_config:
+        canal = client.get_channel(guild_config["bienvenida"])
+        if canal:
+            embed = discord.Embed(
+                title="Bienvenido!",
+                description=f"Bienvenido al servidor, {member.mention}! Ya somos **{member.guild.member_count}** miembros.",
+                color=discord.Color.blue()
+            )
+            embed.set_thumbnail(url=member.display_avatar.url)
+            await canal.send(embed=embed)
+
+@client.event
+async def on_member_remove(member):
+    guild_config = config.get(member.guild.id)
+    if guild_config:
+        canal = client.get_channel(guild_config["despedida"])
+        if canal:
+            embed = discord.Embed(
+                title="Hasta luego!",
+                description=f"**{member.name}** ha abandonado el servidor.",
+                color=discord.Color.red()
+            )
+            embed.set_thumbnail(url=member.display_avatar.url)
+            await canal.send(embed=embed)
+
+class VerificarBoton(discord.ui.View):
+    def __init__(self, rol_id):
+        super().__init__(timeout=None)
+        self.rol_id = rol_id
+
+    @discord.ui.button(label="Verificarme", style=discord.ButtonStyle.green, custom_id="verificar")
+    async def verificar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        rol = interaction.guild.get_role(self.rol_id)
+        if rol in interaction.user.roles:
+            await interaction.response.send_message("Ya estas verificado.", ephemeral=True)
+        else:
+            await interaction.user.add_roles(rol)
+            await interaction.response.send_message(f"Verificado! Ahora tienes el rol **{rol.name}**.", ephemeral=True)
+
+@tree.command(name="panel-verificacion", description="Crea un panel de verificacion con boton")
+@app_commands.checks.has_permissions(administrator=True)
+async def panel_verificacion(
+    interaction: discord.Interaction,
+    canal: discord.TextChannel,
+    rol: discord.Role,
+    titulo: str,
+    descripcion: str
+):
+    embed = discord.Embed(title=titulo, description=descripcion, color=discord.Color.green())
+    embed.set_footer(text="Toca el boton para verificarte")
+    await canal.send(embed=embed, view=VerificarBoton(rol.id))
+    await interaction.response.send_message("Panel de verificacion creado.", ephemeral=True)
+
+class CerrarTicket(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Cerrar Ticket", style=discord.ButtonStyle.red, custom_id="cerrar_ticket")
+    async def cerrar_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("Cerrando ticket en 5 segundos...", ephemeral=True)
+        await asyncio.sleep(5)
+        await interaction.channel.delete()
+
+class TicketBoton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Abrir Ticket", style=discord.ButtonStyle.blurple, custom_id="abrir_ticket")
+    async def abrir_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        guild = interaction.guild
+        nombre_canal = f"ticket-{interaction.user.name}"
+        canal_existente = discord.utils.get(guild.text_channels, name=nombre_canal)
+        if canal_existente:
+            await interaction.response.send_message(f"Ya tienes un ticket abierto: {canal_existente.mention}", ephemeral=True)
+            return
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
+        canal_ticket = await guild.create_text_channel(nombre_canal, overwrites=overwrites)
+        embed = discord.Embed(
+            title="Ticket Abierto",
+            description=f"Hola {interaction.user.mention}, el staff teatendera pronto. Para cerrar el ticket usa el boton de abajo.",
+            color=discord.Color.blue()
+        )
+        await canal_ticket.send(embed=embed, view=CerrarTicket())
+        await interaction.response.send_message(f"Ticket creado: {canal_ticket.mention}", ephemeral=True)
+
+@tree.command(name="panel-ticket", description="Crea un panel de tickets")
+@app_commands.checks.has_permissions(administrator=True)
+async def panel_ticket(
+    interaction: discord.Interaction,
+    canal: discord.TextChannel,
+    titulo: str,
+    descripcion: str
+):
+    embed = discord.Embed(title=titulo, description=descripcion, color=discord.Color.blue())
+    embed.set_footer(text="Toca el boton para abrir un ticket")
+    await canal.send(embed=embed, view=TicketBoton())
+    await interaction.response.send_message("Panel de tickets creado.", ephemeral=True)
+
+TOKEN = os.getenv("DISCORD_TOKEN")
+client.run(TOKEN)
