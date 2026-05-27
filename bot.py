@@ -76,7 +76,7 @@ async def antilink(interaction: discord.Interaction, canal: discord.TextChannel,
         canales_antilink.discard(canal.id)
         await interaction.response.send_message(f"❌ Anti-link desactivado en {canal.mention}", ephemeral=True)
 
-# ── Malas palabras mejorado ────────────────────────────────
+# ── Malas palabras ─────────────────────────────────────────
 MALAS_PALABRAS = [
     "mierda", "puta", "puto", "idiota", "imbecil", "pendejo",
     "cabron", "gay", "maricon", "maldito", "estupido", "culo",
@@ -110,7 +110,6 @@ async def on_message(message):
         if palabra in contenido:
             await message.delete()
 
-            # Tiempo aleatorio entre 5 y 10 minutos
             minutos = random.randint(5, 10)
             segundos = minutos * 60
 
@@ -123,18 +122,41 @@ async def on_message(message):
             await message.author.add_roles(rol_aislado)
             usuarios_aislados.add(message.author.id)
 
-            embed = discord.Embed(
+            # Mensaje corto en el canal donde ocurrió
+            embed_canal = discord.Embed(
                 title="🔇 Usuario Aislado",
-                description=f"{message.author.mention} fue aislado por usar lenguaje inapropiado.\n⏱️ Duración: **{minutos} minutos**",
+                description=f"{message.author.mention} fue aislado por **{minutos} minutos** por usar lenguaje inapropiado.",
                 color=discord.Color.red()
             )
-            aviso = await message.channel.send(embed=embed)
+            await message.channel.send(embed=embed_canal, delete_after=10)
+
+            # Mensaje detallado en canal advertencia
+            canal_adv = discord.utils.get(message.guild.text_channels, name="advertencia")
+            if canal_adv:
+                embed_adv = discord.Embed(
+                    title="⚠️ Advertencia — Usuario Aislado",
+                    color=discord.Color.red()
+                )
+                embed_adv.add_field(name="👤 Usuario", value=f"{message.author.mention} (`{message.author.name}`)", inline=True)
+                embed_adv.add_field(name="⏱️ Duración", value=f"{minutos} minutos", inline=True)
+                embed_adv.add_field(name="📢 Canal", value=message.channel.mention, inline=True)
+                embed_adv.add_field(
+                    name="📝 Motivo",
+                    value=f"Se detectó la palabra prohibida **`{palabra}`** en su mensaje.",
+                    inline=False
+                )
+                embed_adv.add_field(
+                    name="📋 Explicación",
+                    value="El servidor no permite el uso de lenguaje ofensivo, vulgar o discriminatorio. El usuario ha sido aislado temporalmente por violar las normas del servidor.",
+                    inline=False
+                )
+                embed_adv.set_thumbnail(url=message.author.display_avatar.url)
+                embed_adv.set_footer(text=f"El aislamiento se levantará automáticamente en {minutos} minutos.")
+                await canal_adv.send(embed=embed_adv)
 
             await asyncio.sleep(segundos)
-
             await message.author.remove_roles(rol_aislado)
             usuarios_aislados.discard(message.author.id)
-            await aviso.delete()
             break
 
 # ── Configuración ──────────────────────────────────────────
@@ -155,7 +177,7 @@ async def panel_bienvenida(
         "bienvenida": canal_bienvenida.id,
         "despedida": canal_despedida.id
     }
-    embed = discord.Embed(title=titulo, description=descripcion, color=discord.Color.blue())
+    embed = discord.Embed(title=titulo, descripcion=descripcion, color=discord.Color.blue())
     embed.set_footer(text=f"🎉 Bienvenidas en {canal_bienvenida.name} | Despedidas en {canal_despedida.name}")
     embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else None)
     await canal.send(embed=embed)
