@@ -300,6 +300,100 @@ async def panel_ticket(
     embed.set_footer(text="Toca el boton para abrir un ticket")
     await canal.send(embed=embed, view=TicketBoton())
     await interaction.response.send_message("Panel de tickets creado.", ephemeral=True)
+    import yt_dlp
+
+FFMPEG_OPTIONS = {
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'options': '-vn'
+}
+
+YDL_OPTIONS = {
+    'format': 'bestaudio',
+    'noplaylist': True,
+    'quiet': True
+}
+
+colas = {}
+
+def get_cola(guild_id):
+    if guild_id not in colas:
+        colas[guild_id] = []
+    return colas[guild_id]
+
+@tree.command(name="play", description="Reproduce una cancion en el canal de voz")
+async def play(interaction: discord.Interaction, cancion: str):
+    if not interaction.user.voice:
+        await interaction.response.send_message("Debes estar en un canal de voz.", ephemeral=True)
+        return
+
+    await interaction.response.defer()
+
+    canal_voz = interaction.user.voice.channel
+    voice_client = interaction.guild.voice_client
+
+    if not voice_client:
+        voice_client = await canal_voz.connect()
+
+    with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+        info = ydl.extract_info(f"ytsearch:{cancion}", download=False)
+        if 'entries' in info:
+            info = info['entries'][0]
+        url = info['url']
+        titulo = info['title']
+        duracion = info.get('duration', 0)
+        minutos = duracion // 60
+        segundos = duracion % 60
+
+    if voice_client.is_playing():
+        get_cola(interaction.guild.id).append((url, titulo))
+        embed = discord.Embed(
+            title="Agregado a la cola",
+            description=f"**{titulo}**",
+            color=discord.Color.blue()
+        )
+        await interaction.followup.send(embed=embed)
+        return
+
+    voice_client.play(discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS))
+
+    embed = discord.Embed(
+        title="Reproduciendo ahora",
+        description=f"**{titulo}**",
+        color=discord.Color.green()
+    )
+    embed.add_field(name="Duracion", value=f"{minutos}:{segundos:02d}")
+    embed.add_field(name="Pedido por", value=interaction.user.mention)
+    await interaction.followup.send(embed=embed)
+
+@tree.command(name="skip", description="Salta la cancion actual")
+async def skip(interaction: discord.Interaction):
+    voice_client = interaction.guild.voice_client
+    if voice_client and voice_client.is_playing():
+        voice_client.stop()
+        await interaction.response.send_message("Cancion saltada.", ephemeral=True)
+    else:
+        await interaction.response.send_message("No hay musica reproduciendose.", ephemeral=True)
+
+@tree.command(name="stop", description="Para la musica y desconecta el bot")
+async def stop(interaction: discord.Interaction):
+    voice_client = interaction.guild.voice_client
+    if voice_client:
+        colas[interaction.guild.id] = []
+        await voice_client.disconnect()
+        await interaction.response.send_message("Musica detenida.", ephemeral=True)
+    else:
+        await interaction.response.send_message("El bot no esta en un canal de voz.", ephemeral=True)
+
+@tree.command(name="cola", description="Muestra la cola de canciones")
+async def cola(interaction: discord.Interaction):
+    cola_actual = get_cola(interaction.guild.id)
+    if not cola_actual:
+        await interaction.response.send_message("La cola esta vacia.", ephemeral=True)
+        return
+    embed = discord.Embed(title="Cola de canciones", color=discord.Color.blue())
+    for i, (_, titulo) in enumerate(cola_actual, 1):
+        embed.add_field(name=f"{i}.", value=titulo, inline=False)
+    await interaction.response.send_message(embed=embed)
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 client.run(TOKEN)
