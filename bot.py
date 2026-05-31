@@ -3,6 +3,7 @@ from discord import app_commands
 import os
 import asyncio
 import random
+import yt_dlp
 
 intents = discord.Intents.default()
 intents.members = True
@@ -103,6 +104,7 @@ async def hola_bot(interaction: discord.Interaction, mensaje: str):
     await interaction.channel.send(respuesta)
     await interaction.followup.send("Listo.", ephemeral=True)
 
+# ── Anti Link ──────────────────────────────────────────────
 canales_antilink = set()
 
 @tree.command(name="antilink", description="Activa o desactiva el anti-link en un canal")
@@ -116,6 +118,19 @@ async def antilink(interaction: discord.Interaction, canal: discord.TextChannel,
         canales_antilink.discard(canal.id)
         await interaction.response.send_message(f"Anti-link desactivado en {canal.mention}", ephemeral=True)
 
+# ── Anti Spam ──────────────────────────────────────────────
+spam_control = {}
+
+@tree.command(name="antispam", description="Activa o desactiva el anti-spam en el servidor")
+@app_commands.checks.has_permissions(administrator=True)
+async def antispam(interaction: discord.Interaction, activar: bool):
+    config_spam = config.get(interaction.guild.id, {})
+    config_spam["antispam"] = activar
+    config[interaction.guild.id] = config_spam
+    estado = "activado" if activar else "desactivado"
+    await interaction.response.send_message(f"Anti-spam {estado}.", ephemeral=True)
+
+# ── Malas palabras ─────────────────────────────────────────
 MALAS_PALABRAS = [
     "mierda", "puta", "puto", "idiota", "imbecil", "pendejo",
     "cabron", "gay", "maricon", "maldito", "estupido", "culo",
@@ -130,6 +145,47 @@ usuarios_aislados = set()
 async def on_message(message):
     if message.author.bot:
         return
+
+    # Anti spam
+    guild_config = config.get(message.guild.id, {})
+    if guild_config.get("antispam"):
+        autor_id = message.author.id
+        ahora = asyncio.get_event_loop().time()
+        if autor_id not in spam_control:
+            spam_control[autor_id] = []
+        spam_control[autor_id] = [t for t in spam_control[autor_id] if ahora - t < 5]
+        spam_control[autor_id].append(ahora)
+        if len(spam_control[autor_id]) >= 5:
+            await message.delete()
+            rol_aislado = discord.utils.get(message.guild.roles, name="Aislado")
+            if not rol_aislado:
+                rol_aislado = await message.guild.create_role(name="Aislado")
+                for channel in message.guild.channels:
+                    await channel.set_permissions(rol_aislado, send_messages=False, speak=False)
+            await message.author.add_roles(rol_aislado)
+            usuarios_aislados.add(autor_id)
+            embed_spam = discord.Embed(
+                title="Usuario Aislado por Spam",
+                description=f"{message.author.mention} fue aislado 5 minutos por hacer spam.",
+                color=discord.Color.orange()
+            )
+            await message.channel.send(embed=embed_spam, delete_after=10)
+            canal_adv = discord.utils.get(message.guild.text_channels, name="advertencia")
+            if canal_adv:
+                embed_adv = discord.Embed(title="Advertencia - Spam Detectado", color=discord.Color.orange())
+                embed_adv.add_field(name="Usuario", value=f"{message.author.mention} ({message.author.name})", inline=True)
+                embed_adv.add_field(name="Duracion", value="5 minutos", inline=True)
+                embed_adv.add_field(name="Motivo", value="Envio mas de 5 mensajes en 5 segundos.", inline=False)
+                embed_adv.set_thumbnail(url=message.author.display_avatar.url)
+                embed_adv.set_footer(text="El aislamiento se levantara automaticamente en 5 minutos.")
+                await canal_adv.send(embed=embed_adv)
+            spam_control[autor_id] = []
+            await asyncio.sleep(300)
+            await message.author.remove_roles(rol_aislado)
+            usuarios_aislados.discard(autor_id)
+            return
+
+    # Anti link
     if message.channel.id in canales_antilink:
         if "http://" in message.content or "https://" in message.content or "discord.gg" in message.content:
             await message.delete()
@@ -137,8 +193,10 @@ async def on_message(message):
             await asyncio.sleep(5)
             await aviso.delete()
             return
+
     if message.author.id in usuarios_aislados:
         return
+
     contenido = message.content.lower()
     for palabra in MALAS_PALABRAS:
         if palabra in contenido:
@@ -174,6 +232,7 @@ async def on_message(message):
             usuarios_aislados.discard(message.author.id)
             break
 
+# ── Configuracion ──────────────────────────────────────────
 config = {}
 
 @tree.command(name="panel-bienvenida", description="Crea un panel de bienvenida en un canal")
@@ -282,7 +341,7 @@ class TicketBoton(discord.ui.View):
         canal_ticket = await guild.create_text_channel(nombre_canal, overwrites=overwrites)
         embed = discord.Embed(
             title="Ticket Abierto",
-            description=f"Hola {interaction.user.mention}, el staff teatendera pronto. Para cerrar el ticket usa el boton de abajo.",
+            description=f"Hola {interaction.user.mention}, el staff te atendera pronto. Para cerrar el ticket usa el boton de abajo.",
             color=discord.Color.blue()
         )
         await canal_ticket.send(embed=embed, view=CerrarTicket())
@@ -300,8 +359,8 @@ async def panel_ticket(
     embed.set_footer(text="Toca el boton para abrir un ticket")
     await canal.send(embed=embed, view=TicketBoton())
     await interaction.response.send_message("Panel de tickets creado.", ephemeral=True)
-    import yt_dlp
 
+# ── Musica ─────────────────────────────────────────────────
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'options': '-vn'
@@ -325,15 +384,11 @@ async def play(interaction: discord.Interaction, cancion: str):
     if not interaction.user.voice:
         await interaction.response.send_message("Debes estar en un canal de voz.", ephemeral=True)
         return
-
     await interaction.response.defer()
-
     canal_voz = interaction.user.voice.channel
     voice_client = interaction.guild.voice_client
-
     if not voice_client:
         voice_client = await canal_voz.connect()
-
     with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
         info = ydl.extract_info(f"ytsearch:{cancion}", download=False)
         if 'entries' in info:
@@ -341,27 +396,16 @@ async def play(interaction: discord.Interaction, cancion: str):
         url = info['url']
         titulo = info['title']
         duracion = info.get('duration', 0)
-        minutos = duracion // 60
-        segundos = duracion % 60
-
+        mins = duracion // 60
+        segs = duracion % 60
     if voice_client.is_playing():
         get_cola(interaction.guild.id).append((url, titulo))
-        embed = discord.Embed(
-            title="Agregado a la cola",
-            description=f"**{titulo}**",
-            color=discord.Color.blue()
-        )
+        embed = discord.Embed(title="Agregado a la cola", description=f"**{titulo}**", color=discord.Color.blue())
         await interaction.followup.send(embed=embed)
         return
-
     voice_client.play(discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS))
-
-    embed = discord.Embed(
-        title="Reproduciendo ahora",
-        description=f"**{titulo}**",
-        color=discord.Color.green()
-    )
-    embed.add_field(name="Duracion", value=f"{minutos}:{segundos:02d}")
+    embed = discord.Embed(title="Reproduciendo ahora", description=f"**{titulo}**", color=discord.Color.green())
+    embed.add_field(name="Duracion", value=f"{mins}:{segs:02d}")
     embed.add_field(name="Pedido por", value=interaction.user.mention)
     await interaction.followup.send(embed=embed)
 
