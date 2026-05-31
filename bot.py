@@ -12,6 +12,11 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
+config = {}
+spam_control = {}
+canales_antilink = set()
+usuarios_aislados = set()
+
 @client.event
 async def on_ready():
     await tree.sync()
@@ -44,9 +49,24 @@ async def limpiar(interaction: discord.Interaction, cantidad: int = 5):
 
 @tree.command(name="anuncio", description="Envia un anuncio a un canal especifico")
 @app_commands.checks.has_permissions(administrator=True)
-async def anuncio(interaction: discord.Interaction, canal: discord.TextChannel, mensaje: str):
+@app_commands.describe(
+    canal="Canal donde enviar el anuncio",
+    mensaje="Mensaje del anuncio",
+    color="Color: rojo, azul, verde, amarillo, morado, naranja, blanco"
+)
+async def anuncio(interaction: discord.Interaction, canal: discord.TextChannel, mensaje: str, color: str = "rojo"):
     await interaction.response.defer(ephemeral=True)
-    embed = discord.Embed(description=mensaje, color=discord.Color.red())
+    colores = {
+        "rojo": discord.Color.red(),
+        "azul": discord.Color.blue(),
+        "verde": discord.Color.green(),
+        "amarillo": discord.Color.yellow(),
+        "morado": discord.Color.purple(),
+        "naranja": discord.Color.orange(),
+        "blanco": discord.Color.from_rgb(255, 255, 255)
+    }
+    color_elegido = colores.get(color.lower(), discord.Color.red())
+    embed = discord.Embed(description=mensaje.upper(), color=color_elegido)
     embed.set_author(name="Anuncio")
     await canal.send(embed=embed)
     await interaction.followup.send(f"Anuncio enviado a {canal.mention}", ephemeral=True)
@@ -104,9 +124,6 @@ async def hola_bot(interaction: discord.Interaction, mensaje: str):
     await interaction.channel.send(respuesta)
     await interaction.followup.send("Listo.", ephemeral=True)
 
-# ── Anti Link ──────────────────────────────────────────────
-canales_antilink = set()
-
 @tree.command(name="antilink", description="Activa o desactiva el anti-link en un canal")
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.describe(canal="Canal donde aplicar el anti-link", activar="True para activar, False para desactivar")
@@ -118,9 +135,6 @@ async def antilink(interaction: discord.Interaction, canal: discord.TextChannel,
         canales_antilink.discard(canal.id)
         await interaction.response.send_message(f"Anti-link desactivado en {canal.mention}", ephemeral=True)
 
-# ── Anti Spam ──────────────────────────────────────────────
-spam_control = {}
-
 @tree.command(name="antispam", description="Activa o desactiva el anti-spam en el servidor")
 @app_commands.checks.has_permissions(administrator=True)
 async def antispam(interaction: discord.Interaction, activar: bool):
@@ -130,7 +144,6 @@ async def antispam(interaction: discord.Interaction, activar: bool):
     estado = "activado" if activar else "desactivado"
     await interaction.response.send_message(f"Anti-spam {estado}.", ephemeral=True)
 
-# ── Malas palabras ─────────────────────────────────────────
 MALAS_PALABRAS = [
     "mierda", "puta", "puto", "idiota", "imbecil", "pendejo",
     "cabron", "gay", "maricon", "maldito", "estupido", "culo",
@@ -139,14 +152,10 @@ MALAS_PALABRAS = [
     "mamaguevo", "come mierda", "hijo de puta"
 ]
 
-usuarios_aislados = set()
-
 @client.event
 async def on_message(message):
     if message.author.bot:
         return
-
-    # Anti spam
     guild_config = config.get(message.guild.id, {})
     if guild_config.get("antispam"):
         autor_id = message.author.id
@@ -184,8 +193,6 @@ async def on_message(message):
             await message.author.remove_roles(rol_aislado)
             usuarios_aislados.discard(autor_id)
             return
-
-    # Anti link
     if message.channel.id in canales_antilink:
         if "http://" in message.content or "https://" in message.content or "discord.gg" in message.content:
             await message.delete()
@@ -193,10 +200,8 @@ async def on_message(message):
             await asyncio.sleep(5)
             await aviso.delete()
             return
-
     if message.author.id in usuarios_aislados:
         return
-
     contenido = message.content.lower()
     for palabra in MALAS_PALABRAS:
         if palabra in contenido:
@@ -231,9 +236,6 @@ async def on_message(message):
             await message.author.remove_roles(rol_aislado)
             usuarios_aislados.discard(message.author.id)
             break
-
-# ── Configuracion ──────────────────────────────────────────
-config = {}
 
 @tree.command(name="panel-bienvenida", description="Crea un panel de bienvenida en un canal")
 @app_commands.checks.has_permissions(administrator=True)
@@ -360,7 +362,6 @@ async def panel_ticket(
     await canal.send(embed=embed, view=TicketBoton())
     await interaction.response.send_message("Panel de tickets creado.", ephemeral=True)
 
-# ── Musica ─────────────────────────────────────────────────
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'options': '-vn'
