@@ -403,3 +403,5 @@ async def play(interaction: discord.Interaction, cancion: str):
         url = info['url']
         titulo = info['title']
         duracion = info.get('duration', 0)
+
+client.run(os.getenv("TOKEN"))
