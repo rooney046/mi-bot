@@ -51,11 +51,19 @@ async def limpiar(interaction: discord.Interaction, cantidad: int = 5):
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.describe(
     canal="Canal donde enviar el anuncio",
-    mensaje="Mensaje del anuncio (puede incluir links)",
+    mensaje="Mensaje del anuncio",
     color="Color: rojo, azul, verde, amarillo, morado, naranja, blanco",
-    mencionar_everyone="True para mencionar @everyone"
+    link="Link que se incluira en el anuncio (opcional)",
+    texto_link="Texto visible del link (opcional, por defecto: Ver mas)"
 )
-async def anuncio(interaction: discord.Interaction, canal: discord.TextChannel, mensaje: str, color: str = "rojo", mencionar_everyone: bool = False):
+async def anuncio(
+    interaction: discord.Interaction,
+    canal: discord.TextChannel,
+    mensaje: str,
+    color: str = "rojo",
+    link: str = None,
+    texto_link: str = "Ver mas"
+):
     await interaction.response.defer(ephemeral=True)
     colores = {
         "rojo": discord.Color.red(),
@@ -67,14 +75,11 @@ async def anuncio(interaction: discord.Interaction, canal: discord.TextChannel, 
         "blanco": discord.Color.from_rgb(255, 255, 255)
     }
     color_elegido = colores.get(color.lower(), discord.Color.red())
-    embed = discord.Embed(description=mensaje, color=color_elegido)
+    embed = discord.Embed(description=mensaje.upper(), color=color_elegido)
     embed.set_author(name="Anuncio")
-    contenido = "@everyone" if mencionar_everyone else None
-    await canal.send(
-        content=contenido,
-        embed=embed,
-        allowed_mentions=discord.AllowedMentions(everyone=True) if mencionar_everyone else discord.AllowedMentions.none()
-    )
+    if link:
+        embed.add_field(name="🔗 Link", value=f"[{texto_link}]({link})", inline=False)
+    await canal.send(embed=embed)
     await interaction.followup.send(f"Anuncio enviado a {canal.mention}", ephemeral=True)
 
 @tree.command(name="mensaje-ticket", description="Envia un mensaje embed dentro de un ticket abierto")
@@ -395,13 +400,4 @@ async def play(interaction: discord.Interaction, cancion: str):
     canal_voz = interaction.user.voice.channel
     voice_client = interaction.guild.voice_client
     if not voice_client:
-        voice_client = await canal_voz.connect()
-    with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-        info = ydl.extract_info(f"ytsearch:{cancion}", download=False)
-        if 'entries' in info:
-            info = info['entries'][0]
-        url = info['url']
-        titulo = info['title']
-        duracion = info.get('duration', 0)
-
-client.run(os.getenv("TOKEN"))
+        voice_client = await can
