@@ -51,10 +51,11 @@ async def limpiar(interaction: discord.Interaction, cantidad: int = 5):
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.describe(
     canal="Canal donde enviar el anuncio",
-    mensaje="Mensaje del anuncio",
-    color="Color: rojo, azul, verde, amarillo, morado, naranja, blanco"
+    mensaje="Mensaje del anuncio (puede incluir links)",
+    color="Color: rojo, azul, verde, amarillo, morado, naranja, blanco",
+    mencionar_everyone="True para mencionar @everyone"
 )
-async def anuncio(interaction: discord.Interaction, canal: discord.TextChannel, mensaje: str, color: str = "rojo"):
+async def anuncio(interaction: discord.Interaction, canal: discord.TextChannel, mensaje: str, color: str = "rojo", mencionar_everyone: bool = False):
     await interaction.response.defer(ephemeral=True)
     colores = {
         "rojo": discord.Color.red(),
@@ -66,9 +67,14 @@ async def anuncio(interaction: discord.Interaction, canal: discord.TextChannel, 
         "blanco": discord.Color.from_rgb(255, 255, 255)
     }
     color_elegido = colores.get(color.lower(), discord.Color.red())
-    embed = discord.Embed(description=mensaje.upper(), color=color_elegido)
+    embed = discord.Embed(description=mensaje, color=color_elegido)
     embed.set_author(name="Anuncio")
-    await canal.send(embed=embed)
+    contenido = "@everyone" if mencionar_everyone else None
+    await canal.send(
+        content=contenido,
+        embed=embed,
+        allowed_mentions=discord.AllowedMentions(everyone=True) if mencionar_everyone else discord.AllowedMentions.none()
+    )
     await interaction.followup.send(f"Anuncio enviado a {canal.mention}", ephemeral=True)
 
 @tree.command(name="mensaje-ticket", description="Envia un mensaje embed dentro de un ticket abierto")
@@ -397,48 +403,3 @@ async def play(interaction: discord.Interaction, cancion: str):
         url = info['url']
         titulo = info['title']
         duracion = info.get('duration', 0)
-        mins = duracion // 60
-        segs = duracion % 60
-    if voice_client.is_playing():
-        get_cola(interaction.guild.id).append((url, titulo))
-        embed = discord.Embed(title="Agregado a la cola", description=f"**{titulo}**", color=discord.Color.blue())
-        await interaction.followup.send(embed=embed)
-        return
-    voice_client.play(discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS))
-    embed = discord.Embed(title="Reproduciendo ahora", description=f"**{titulo}**", color=discord.Color.green())
-    embed.add_field(name="Duracion", value=f"{mins}:{segs:02d}")
-    embed.add_field(name="Pedido por", value=interaction.user.mention)
-    await interaction.followup.send(embed=embed)
-
-@tree.command(name="skip", description="Salta la cancion actual")
-async def skip(interaction: discord.Interaction):
-    voice_client = interaction.guild.voice_client
-    if voice_client and voice_client.is_playing():
-        voice_client.stop()
-        await interaction.response.send_message("Cancion saltada.", ephemeral=True)
-    else:
-        await interaction.response.send_message("No hay musica reproduciendose.", ephemeral=True)
-
-@tree.command(name="stop", description="Para la musica y desconecta el bot")
-async def stop(interaction: discord.Interaction):
-    voice_client = interaction.guild.voice_client
-    if voice_client:
-        colas[interaction.guild.id] = []
-        await voice_client.disconnect()
-        await interaction.response.send_message("Musica detenida.", ephemeral=True)
-    else:
-        await interaction.response.send_message("El bot no esta en un canal de voz.", ephemeral=True)
-
-@tree.command(name="cola", description="Muestra la cola de canciones")
-async def cola(interaction: discord.Interaction):
-    cola_actual = get_cola(interaction.guild.id)
-    if not cola_actual:
-        await interaction.response.send_message("La cola esta vacia.", ephemeral=True)
-        return
-    embed = discord.Embed(title="Cola de canciones", color=discord.Color.blue())
-    for i, (_, titulo) in enumerate(cola_actual, 1):
-        embed.add_field(name=f"{i}.", value=titulo, inline=False)
-    await interaction.response.send_message(embed=embed)
-
-TOKEN = os.getenv("DISCORD_TOKEN")
-client.run(TOKEN)
