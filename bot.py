@@ -237,6 +237,29 @@ async def on_member_remove(member):
             embed.set_thumbnail(url=member.display_avatar.url)
             await canal.send(embed=embed)
 
+# ── Nitro Boosts ───────────────────────────────────────────
+@client.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    # Detectar si el usuario acaba de hacer boost (antes no boosteaba, ahora sí)
+    if before.premium_since is None and after.premium_since is not None:
+        canal_boosts = discord.utils.get(after.guild.text_channels, name="boots")
+        if canal_boosts:
+            total_boosts = after.guild.premium_subscription_count
+            nivel = after.guild.premium_tier
+            embed = discord.Embed(
+                title="🚀 ¡Nuevo Boost al servidor!",
+                description=(
+                    f"✨ ¡Gracias {after.mention} por impulsar el servidor con un **Nitro Boost**! 💜\n\n"
+                    f"💎 El servidor ahora tiene **{total_boosts} boost(s)** en total.\n"
+                    f"🏆 Nivel actual del servidor: **Nivel {nivel}**\n\n"
+                    "¡Tu apoyo hace que este servidor sea increíble! 🎉"
+                ),
+                color=discord.Color.nitro_pink() if hasattr(discord.Color, "nitro_pink") else discord.Color.purple()
+            )
+            embed.set_thumbnail(url=after.display_avatar.url)
+            embed.set_footer(text="¡Gracias por tu apoyo! 💜")
+            await canal_boosts.send(embed=embed)
+
 # ── Panel de verificación ──────────────────────────────────
 class VerificarBoton(discord.ui.View):
     def __init__(self, rol_id):
@@ -318,3 +341,4 @@ async def panel_ticket(
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 client.run(TOKEN)
+        
