@@ -11,7 +11,7 @@ client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 # ── Sistema de idiomas ─────────────────────────────────────
-idioma_servidor = {}  # guild_id -> "es" | "en" | "pt"
+idioma_servidor = {}
 
 TEXTOS = {
     "es": {
@@ -22,7 +22,6 @@ TEXTOS = {
         "antilink_on": "✅ Anti-link activado en {canal}",
         "antilink_off": "❌ Anti-link desactivado en {canal}",
         "antilink_aviso": "🚫 {usuario} no se permiten links aquí.",
-        "aislado_aviso": "🔇 {usuario} fue aislado {min} minutos por usar lenguaje inapropiado.",
         "warn_titulo": "Advertencia - Usuario Aislado",
         "warn_usuario": "Usuario",
         "warn_duracion": "Duración",
@@ -43,10 +42,6 @@ TEXTOS = {
         "panel_ticket_ok": "✅ Panel de tickets creado.",
         "panel_bienvenida_ok": "✅ Panel de bienvenida creado y canales configurados.",
         "idioma_cambiado": "✅ Idioma cambiado a **Español** 🇪🇸",
-        "idioma_desc": "Selecciona el idioma del bot para este servidor:",
-        "btn_es": "🇪🇸 Español",
-        "btn_en": "🇬🇧 English",
-        "btn_pt": "🇧🇷 Português",
         "info_titulo": "📋 Información del Bot",
         "info_desc": "Aquí tienes todo lo que necesitas saber sobre mí.",
         "info_nombre": "🤖 Nombre",
@@ -79,7 +74,6 @@ TEXTOS = {
         "antilink_on": "✅ Anti-link enabled in {canal}",
         "antilink_off": "❌ Anti-link disabled in {canal}",
         "antilink_aviso": "🚫 {usuario} links are not allowed here.",
-        "aislado_aviso": "🔇 {usuario} was isolated {min} minutes for inappropriate language.",
         "warn_titulo": "Warning - Isolated User",
         "warn_usuario": "User",
         "warn_duracion": "Duration",
@@ -100,10 +94,6 @@ TEXTOS = {
         "panel_ticket_ok": "✅ Ticket panel created.",
         "panel_bienvenida_ok": "✅ Welcome panel created and channels configured.",
         "idioma_cambiado": "✅ Language changed to **English** 🇬🇧",
-        "idioma_desc": "Select the bot language for this server:",
-        "btn_es": "🇪🇸 Español",
-        "btn_en": "🇬🇧 English",
-        "btn_pt": "🇧🇷 Português",
         "info_titulo": "📋 Bot Information",
         "info_desc": "Here's everything you need to know about me.",
         "info_nombre": "🤖 Name",
@@ -136,7 +126,6 @@ TEXTOS = {
         "antilink_on": "✅ Anti-link ativado em {canal}",
         "antilink_off": "❌ Anti-link desativado em {canal}",
         "antilink_aviso": "🚫 {usuario} links não são permitidos aqui.",
-        "aislado_aviso": "🔇 {usuario} foi isolado {min} minutos por linguagem inapropriada.",
         "warn_titulo": "Aviso - Usuário Isolado",
         "warn_usuario": "Usuário",
         "warn_duracion": "Duração",
@@ -157,10 +146,6 @@ TEXTOS = {
         "panel_ticket_ok": "✅ Painel de tickets criado.",
         "panel_bienvenida_ok": "✅ Painel de boas-vindas criado e canais configurados.",
         "idioma_cambiado": "✅ Idioma alterado para **Português** 🇧🇷",
-        "idioma_desc": "Selecione o idioma do bot para este servidor:",
-        "btn_es": "🇪🇸 Español",
-        "btn_en": "🇬🇧 English",
-        "btn_pt": "🇧🇷 Português",
         "info_titulo": "📋 Informações do Bot",
         "info_desc": "Aqui está tudo que você precisa saber sobre mim.",
         "info_nombre": "🤖 Nome",
@@ -188,13 +173,11 @@ TEXTOS = {
 }
 
 def t(guild_id, clave, **kwargs):
-    """Obtiene el texto en el idioma del servidor."""
     lang = idioma_servidor.get(guild_id, "es")
     texto = TEXTOS[lang].get(clave, TEXTOS["es"].get(clave, clave))
     return texto.format(**kwargs) if kwargs else texto
 
 
-# ── Eventos ────────────────────────────────────────────────
 @client.event
 async def on_ready():
     await tree.sync()
@@ -202,7 +185,6 @@ async def on_ready():
     await client.change_presence(activity=discord.Game(name="/bot-info"))
 
 
-# ── Comandos básicos ───────────────────────────────────────
 @tree.command(name="ping", description="Muestra la latencia del bot")
 async def ping(interaction: discord.Interaction):
     ms = round(client.latency * 1000)
@@ -216,7 +198,7 @@ async def saludar(interaction: discord.Interaction, usuario: discord.Member = No
 @tree.command(name="info", description="Muestra información del servidor")
 async def info(interaction: discord.Interaction):
     servidor = interaction.guild
-    embed = discord.Embed(title=f"📋 Info de {servidor.name}", color=discord.Color.blue())
+    embed = discord.Embed(title="📋 Info de " + servidor.name, color=discord.Color.blue())
     embed.add_field(name="Miembros", value=servidor.member_count)
     embed.add_field(name="Canales", value=len(servidor.channels))
     await interaction.response.send_message(embed=embed)
@@ -246,7 +228,7 @@ async def anuncio(
     embed = discord.Embed(description=mensaje, color=discord.Color.red())
     embed.set_author(name="📢 Anuncio")
     if link:
-        embed.add_field(name="🔗 Link", value=f"[{texto_link}]({link})", inline=False)
+        embed.add_field(name="🔗 Link", value="[" + texto_link + "](" + link + ")", inline=False)
     await canal.send(embed=embed)
     await interaction.followup.send(t(interaction.guild.id, "anuncio_ok", canal=canal.mention), ephemeral=True)
 
@@ -269,7 +251,7 @@ async def antilink(interaction: discord.Interaction, canal: discord.TextChannel,
 
 # ── Malas palabras ─────────────────────────────────────────
 MALAS_PALABRAS = ["mierda", "puta", "idiota", "imbecil", "pendejo", "cabron", "puto"]
-DURACION_AISLAMIENTO = 8  # minutos
+DURACION_AISLAMIENTO = 8
 
 @client.event
 async def on_message(message):
@@ -278,7 +260,6 @@ async def on_message(message):
 
     gid = message.guild.id if message.guild else None
 
-    # Anti link
     if message.channel.id in canales_antilink:
         if "http://" in message.content or "https://" in message.content or "discord.gg" in message.content:
             await message.delete()
@@ -287,7 +268,6 @@ async def on_message(message):
             await aviso.delete()
             return
 
-    # Malas palabras
     contenido = message.content.lower()
     for palabra in MALAS_PALABRAS:
         if palabra in contenido:
@@ -306,8 +286,8 @@ async def on_message(message):
                     title=t(gid, "warn_titulo"),
                     color=discord.Color.from_rgb(255, 80, 80)
                 )
-                embed.add_field(name=t(gid, "warn_usuario"), value=f"{message.author.mention} ({message.author.name})", inline=False)
-                embed.add_field(name=t(gid, "warn_duracion"), value=f"{DURACION_AISLAMIENTO} minutos", inline=False)
+                embed.add_field(name=t(gid, "warn_usuario"), value=message.author.mention + " (" + message.author.name + ")", inline=False)
+                embed.add_field(name=t(gid, "warn_duracion"), value=str(DURACION_AISLAMIENTO) + " minutos", inline=False)
                 embed.add_field(name=t(gid, "warn_canal"), value=message.channel.mention, inline=False)
                 embed.add_field(name=t(gid, "warn_motivo"), value=t(gid, "warn_motivo_val", palabra=palabra), inline=False)
                 embed.add_field(name=t(gid, "warn_explicacion"), value=t(gid, "warn_explicacion_val"), inline=False)
@@ -331,7 +311,7 @@ config = {}
     canal="Canal donde mostrar el panel",
     nombre_servidor="Nombre del servidor",
     descripcion_servidor="Descripción corta del servidor",
-    roles="Roles disponibles (ej: policía, médico...)",
+    roles="Roles disponibles",
     canal_reglas="Canal de reglas",
     canal_anuncios="Canal de anuncios",
     canal_chat="Canal de chat",
@@ -360,24 +340,25 @@ async def panel_bienvenida(
         "canal_anuncios": canal_anuncios.id,
         "canal_chat": canal_chat.id
     }
+    descripcion = (
+        "🏙️ Has llegado a **" + nombre_servidor + "**, " + descripcion_servidor + ".\n"
+        "Aquí podrás convertirte en quien quieras: " + roles + "\n\n"
+        "📋 **Pasos importantes para empezar:**\n"
+        "1️⃣ Lee las reglas en " + canal_reglas.mention + "\n"
+        "2️⃣ Mira las novedades en " + canal_anuncios.mention + "\n"
+        "3️⃣ Pasa por " + canal_chat.mention + "\n\n"
+        "🎭 **Recuerda:**\n"
+        "• El respeto es fundamental 🙌\n"
+        "• Juega con creatividad y realismo 🎬\n"
+        "• Cumple las normas para no recibir sanciones 🚫\n\n"
+        "🚀 ¡Gracias por unirte a nuestra comunidad! 🎉"
+    )
     embed = discord.Embed(
-        title=f"✨ Panel de Bienvenida — {nombre_servidor} ✨",
-        description=(
-            f"🏙️ Has llegado a **{nombre_servidor}**, {descripcion_servidor}.\n"
-            f"Aquí podrás convertirte en quien quieras: {roles}\n\n"
-            f"📋 **Pasos importantes para empezar:**\n"
-            f"1️⃣ Lee las reglas en {canal_reglas.mention}\n"
-            f"2️⃣ Mira las novedades en {canal_anuncios.mention}\n"
-            f"3️⃣ Pasa por {canal_chat.mention}\n\n"
-            "🎭 **Recuerda:**\n"
-            "• El respeto es fundamental 🙌\n"
-            "• Juega con creatividad y realismo 🎬\n"
-            "• Cumple las normas para no recibir sanciones 🚫\n\n"
-            f"🚀 ¡Gracias por unirte a nuestra comunidad! 🎉"
-        ),
+        title="✨ Panel de Bienvenida — " + nombre_servidor + " ✨",
+        description=descripcion,
         color=discord.Color.green()
     )
-    embed.set_footer(text=f"🎉 Bienvenidas en #{canal_bienvenida.name} | Despedidas en #{canal_despedida.name}")
+    embed.set_footer(text="🎉 Bienvenidas en #" + canal_bienvenida.name + " | Despedidas en #" + canal_despedida.name)
     embed.set_thumbnail(url=interaction.guild.icon.url if interaction.guild.icon else None)
     await canal.send(embed=embed)
     await interaction.response.send_message(t(interaction.guild.id, "panel_bienvenida_ok"), ephemeral=True)
@@ -390,21 +371,216 @@ async def on_member_join(member):
         canal = client.get_channel(guild_config["bienvenida"])
         nombre_servidor = guild_config.get("nombre_servidor", member.guild.name)
         roles = guild_config.get("roles", "policía 🚓, médico 🚑, bombero 🔥")
-        canal_reglas_mention = f"<#{guild_config.get('canal_reglas')}>" if guild_config.get('canal_reglas') else "#reglas"
-        canal_anuncios_mention = f"<#{guild_config.get('canal_anuncios')}>" if guild_config.get('canal_anuncios') else "#anuncios"
-        canal_chat_mention = f"<#{guild_config.get('canal_chat')}>" if guild_config.get('canal_chat') else "#chat"
+        canal_reglas_mention = "<#" + str(guild_config.get("canal_reglas")) + ">" if guild_config.get("canal_reglas") else "#reglas"
+        canal_anuncios_mention = "<#" + str(guild_config.get("canal_anuncios")) + ">" if guild_config.get("canal_anuncios") else "#anuncios"
+        canal_chat_mention = "<#" + str(guild_config.get("canal_chat")) + ">" if guild_config.get("canal_chat") else "#chat"
         if canal:
+            descripcion = (
+                "🏙️ Has llegado a **" + nombre_servidor + "**.\n"
+                "Aquí podrás convertirte en quien quieras: " + roles + "\n\n"
+                "📋 **Pasos importantes para empezar:**\n"
+                "1️⃣ Lee las reglas en " + canal_reglas_mention + "\n"
+                "2️⃣ Mira las novedades en " + canal_anuncios_mention + "\n"
+                "3️⃣ Pasa por " + canal_chat_mention + "\n\n"
+                "🎭 **Recuerda:**\n"
+                "• El respeto es fundamental 🙌\n"
+                "• Juega con creatividad y realismo 🎬\n"
+                "• Cumple las normas para no recibir sanciones 🚫\n\n"
+                "🚀 ¡Tu segunda vida comienza ahora en **" + nombre_servidor + "**! 🎉"
+            )
             embed = discord.Embed(
-                title=f"✨ Bienvenido/a {member.name} ✨",
-                description=(
-                    f"🏙️ Has llegado a **{nombre_servidor}**.\n"
-                    f"Aquí podrás convertirte en quien quieras: {roles}\n\n"
-                    "📋 **Pasos importantes para empezar:**\n"
-                    f"1️⃣ Lee las reglas en {canal_reglas_mention}\n"
-                    f"2️⃣ Mira las novedades en {canal_anuncios_mention}\n"
-                    f"3️⃣ Pasa por {canal_chat_mention}\n\n"
-                    "🎭 **Recuerda:**\n"
-                    "• El respeto es fundamental 🙌\n"
-                    "• Juega con creatividad y realismo 🎬\n"
-                    "• Cumple las normas para no recibir sanciones 🚫\n\n"
-                    f"🚀 ¡Tu segunda vida comienza ahora en **{nombre_servid
+                title="✨ Bienvenido/a " + member.name + " ✨",
+                description=descripcion,
+                color=discord.Color.green()
+            )
+            embed.set_thumbnail(url=member.display_avatar.url)
+            await canal.send(embed=embed)
+
+
+@client.event
+async def on_member_remove(member):
+    guild_config = config.get(member.guild.id)
+    if guild_config:
+        canal = client.get_channel(guild_config["despedida"])
+        nombre_servidor = guild_config.get("nombre_servidor", member.guild.name)
+        if canal:
+            descripcion = (
+                "🏙️ Hoy nos despedimos de un ciudadano más de **" + nombre_servidor + "**.\n"
+                "Quizás su historia termine aquí, o tal vez solo sea una pausa.\n\n"
+                "💭 Cada rol deja recuerdos:\n"
+                "• Risas compartidas 😂\n"
+                "• Aventuras vividas 🚀\n"
+                "• Amistades creadas 🤝\n\n"
+                "✨ Las puertas siempre estarán abiertas para volver.\n"
+                "🚪 ¡Hasta pronto, viajero!"
+            )
+            embed = discord.Embed(
+                title="👋 " + member.name + " ha salido del servidor...",
+                description=descripcion,
+                color=discord.Color.red()
+            )
+            embed.set_thumbnail(url=member.display_avatar.url)
+            await canal.send(embed=embed)
+
+
+# ── Nitro Boosts ───────────────────────────────────────────
+@client.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    if before.premium_since is None and after.premium_since is not None:
+        canal_boosts = discord.utils.get(after.guild.text_channels, name="boots")
+        if canal_boosts:
+            descripcion = (
+                "✨ ¡Gracias " + after.mention + " por impulsar el servidor con un **Nitro Boost**! 💜\n\n"
+                "💎 El servidor ahora tiene **" + str(after.guild.premium_subscription_count) + " boost(s)** en total.\n"
+                "🏆 Nivel actual del servidor: **Nivel " + str(after.guild.premium_tier) + "**\n\n"
+                "¡Tu apoyo hace que este servidor sea increíble! 🎉"
+            )
+            embed = discord.Embed(
+                title="🚀 ¡Nuevo Boost al servidor!",
+                description=descripcion,
+                color=discord.Color.purple()
+            )
+            embed.set_thumbnail(url=after.display_avatar.url)
+            embed.set_footer(text="¡Gracias por tu apoyo! 💜")
+            await canal_boosts.send(embed=embed)
+
+
+# ── Panel de verificación ──────────────────────────────────
+class VerificarBoton(discord.ui.View):
+    def __init__(self, rol_id):
+        super().__init__(timeout=None)
+        self.rol_id = rol_id
+
+    @discord.ui.button(label="✅ Verificarme", style=discord.ButtonStyle.green, custom_id="verificar")
+    async def verificar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        gid = interaction.guild.id
+        rol = interaction.guild.get_role(self.rol_id)
+        if rol in interaction.user.roles:
+            await interaction.response.send_message(t(gid, "verificar_ya"), ephemeral=True)
+        else:
+            await interaction.user.add_roles(rol)
+            await interaction.response.send_message(t(gid, "verificar_ok", rol=rol.name), ephemeral=True)
+
+
+@tree.command(name="panel-verificacion", description="Crea un panel de verificación con botón")
+@app_commands.checks.has_permissions(administrator=True)
+async def panel_verificacion(
+    interaction: discord.Interaction,
+    canal: discord.TextChannel,
+    rol: discord.Role,
+    titulo: str,
+    descripcion: str
+):
+    embed = discord.Embed(title=titulo, description=descripcion, color=discord.Color.green())
+    embed.set_footer(text="Toca el botón para verificarte")
+    await canal.send(embed=embed, view=VerificarBoton(rol.id))
+    await interaction.response.send_message(t(interaction.guild.id, "panel_verif_ok"), ephemeral=True)
+
+
+# ── Panel de Tickets ───────────────────────────────────────
+class CerrarTicket(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="🔒 Cerrar Ticket", style=discord.ButtonStyle.red, custom_id="cerrar_ticket")
+    async def cerrar_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        gid = interaction.guild.id
+        await interaction.response.send_message(t(gid, "cerrar_ticket"), ephemeral=True)
+        await asyncio.sleep(5)
+        await interaction.channel.delete()
+
+
+class TicketBoton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="🎫 Abrir Ticket", style=discord.ButtonStyle.blurple, custom_id="abrir_ticket")
+    async def abrir_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        gid = interaction.guild.id
+        guild = interaction.guild
+        nombre_canal = "ticket-" + interaction.user.name
+        canal_existente = discord.utils.get(guild.text_channels, name=nombre_canal)
+        if canal_existente:
+            await interaction.response.send_message(t(gid, "ticket_existente", canal=canal_existente.mention), ephemeral=True)
+            return
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
+        canal_ticket = await guild.create_text_channel(nombre_canal, overwrites=overwrites)
+        embed = discord.Embed(
+            title=t(gid, "ticket_titulo"),
+            description=t(gid, "ticket_desc", usuario=interaction.user.mention),
+            color=discord.Color.blue()
+        )
+        await canal_ticket.send(embed=embed, view=CerrarTicket())
+        await interaction.response.send_message(t(gid, "ticket_creado", canal=canal_ticket.mention), ephemeral=True)
+
+
+@tree.command(name="panel-ticket", description="Crea un panel de tickets")
+@app_commands.checks.has_permissions(administrator=True)
+async def panel_ticket(
+    interaction: discord.Interaction,
+    canal: discord.TextChannel,
+    titulo: str,
+    descripcion: str
+):
+    embed = discord.Embed(title=titulo, description=descripcion, color=discord.Color.blue())
+    embed.set_footer(text="Toca el botón para abrir un ticket")
+    await canal.send(embed=embed, view=TicketBoton())
+    await interaction.response.send_message(t(interaction.guild.id, "panel_ticket_ok"), ephemeral=True)
+
+
+# ── Panel Bot Info + Selector de idioma ────────────────────
+class SelectorIdioma(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    async def _cambiar_idioma(self, interaction: discord.Interaction, lang: str):
+        idioma_servidor[interaction.guild.id] = lang
+        ms = round(client.latency * 1000)
+        embed = _build_info_embed(interaction.guild.id, ms)
+        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.followup.send(t(interaction.guild.id, "idioma_cambiado"), ephemeral=True)
+
+    @discord.ui.button(label="🇪🇸 Español", style=discord.ButtonStyle.secondary, custom_id="lang_es")
+    async def lang_es(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._cambiar_idioma(interaction, "es")
+
+    @discord.ui.button(label="🇬🇧 English", style=discord.ButtonStyle.secondary, custom_id="lang_en")
+    async def lang_en(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._cambiar_idioma(interaction, "en")
+
+    @discord.ui.button(label="🇧🇷 Português", style=discord.ButtonStyle.secondary, custom_id="lang_pt")
+    async def lang_pt(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._cambiar_idioma(interaction, "pt")
+
+
+def _build_info_embed(guild_id: int, latencia_ms: int) -> discord.Embed:
+    embed = discord.Embed(
+        title=t(guild_id, "info_titulo"),
+        description=t(guild_id, "info_desc"),
+        color=discord.Color.from_rgb(88, 101, 242)
+    )
+    embed.add_field(name=t(guild_id, "info_nombre"),     value=str(client.user),                inline=True)
+    embed.add_field(name=t(guild_id, "info_version"),    value=t(guild_id, "info_version_val"), inline=True)
+    embed.add_field(name=t(guild_id, "info_idioma"),     value=t(guild_id, "info_idioma_val"),  inline=True)
+    embed.add_field(name=t(guild_id, "info_latencia"),   value=str(latencia_ms) + "ms",         inline=True)
+    embed.add_field(name=t(guild_id, "info_servidores"), value=str(len(client.guilds)),         inline=True)
+    embed.add_field(name="\u200b",                       value="\u200b",                        inline=True)
+    embed.add_field(name=t(guild_id, "info_comandos"),   value=t(guild_id, "info_comandos_val"),inline=False)
+    embed.set_thumbnail(url=client.user.display_avatar.url)
+    embed.set_footer(text=t(guild_id, "info_footer"))
+    return embed
+
+
+@tree.command(name="bot-info", description="Muestra información del bot y permite cambiar el idioma")
+async def bot_info(interaction: discord.Interaction):
+    ms = round(client.latency * 1000)
+    embed = _build_info_embed(interaction.guild.id, ms)
+    await interaction.response.send_message(embed=embed, view=SelectorIdioma())
+
+
+TOKEN = os.getenv("DISCORD_TOKEN")
+client.run(TOKEN)
